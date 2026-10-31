@@ -1,0 +1,244 @@
+class GymMember {
+    String memberId;
+    int monthlyFee;
+    final String membershipNumber;
+    private int sessionsAttended;
+    private int[] lateFeeHistory = new int[10];
+    private int lateFeeCount;
+    private int feesPaid;
+    private static int counter = 2000;
+    private static int membersEnrolled = 0;
+
+    public GymMember(String memberId, int monthlyFee) {
+        if (memberId == null || memberId.trim().length() < 4)
+            throw new IllegalArgumentException();
+        if (monthlyFee <= 0)
+            throw new IllegalArgumentException();
+        this.memberId = memberId;
+        this.monthlyFee = monthlyFee;
+        this.membershipNumber = "GYM-" + (++counter);
+        membersEnrolled++;
+    }
+
+    public GymMember(int monthlyFee) {
+        this("AUTO" + (counter + 1), monthlyFee);
+    }
+
+    public void attendSession() {
+        sessionsAttended++;
+    }
+
+    public int getSessionsAttended() {
+        return sessionsAttended;
+    }
+
+    public void displayInfo() {
+        System.out.print("Standard Member | Sessions: " + sessionsAttended);
+    }
+
+    protected void chargeLateFee(int amount) {
+        if (lateFeeCount < lateFeeHistory.length)
+            lateFeeHistory[lateFeeCount++] = amount;
+    }
+
+    public int[] getLateFeeHistory() {
+        return java.util.Arrays.copyOf(lateFeeHistory, lateFeeCount);
+    }
+
+    public int getTotalLateFees() {
+        int total = 0;
+        for (int i = 0; i < lateFeeCount; i++)
+            total += lateFeeHistory[i];
+        return total;
+    }
+
+    public void payFee(int amount) {
+        feesPaid += amount;
+    }
+
+    public void payFee(int amount, String mode) {
+        payFee(amount);
+    }
+
+    public int getFeesPaid() {
+        return feesPaid;
+    }
+
+    public static int getMembersEnrolled() {
+        return membersEnrolled;
+    }
+
+    public static String signUpBatch(String[] memberIds, int monthlyFee) {
+        int signedUp = 0, rejected = 0;
+        for (String id : memberIds) {
+            try {
+                new GymMember(id, monthlyFee);
+                signedUp++;
+            } catch (IllegalArgumentException e) {
+                rejected++;
+            }
+        }
+        return "Signed Up: " + signedUp + " | Rejected: " + rejected;
+    }
+
+    public static boolean isValidReferralCode(String code) {
+        if (code == null || code.length() != 4)
+            return false;
+        return code.charAt(0) == 'G'
+                && Character.isDigit(code.charAt(1))
+                && Character.isDigit(code.charAt(2))
+                && Character.isUpperCase(code.charAt(3));
+    }
+
+    public static String processWeeklyCheckIn(GymMember[] members) {
+        int processed = 0, skipped = 0, group = 0, individual = 0;
+
+        for (GymMember member : members) {
+            if (member == null) {
+                skipped++;
+            } else {
+                processed++;
+                if (member instanceof GroupClassMember)
+                    group++;
+                else
+                    individual++;
+            }
+        }
+
+        return processed + " processed | " + skipped
+                + " null skipped | " + group + " group | "
+                + individual + " individual";
+    }
+}
+
+class PremiumMember extends GymMember {
+    String trainerName;
+
+    public PremiumMember(String memberId, int monthlyFee, String trainerName) {
+        super(memberId, monthlyFee);
+        this.trainerName = trainerName;
+    }
+
+    @Override
+    public void displayInfo() {
+        System.out.print("Premium Member | Trainer: " + trainerName
+                + " | Sessions: " + getSessionsAttended());
+    }
+
+    @Override
+    protected void chargeLateFee(int amount) {
+        super.chargeLateFee(amount / 2);
+    }
+}
+
+class EliteMember extends PremiumMember {
+    String lockerNumber;
+
+    public EliteMember(String memberId, int monthlyFee,
+                       String trainerName, String lockerNumber) {
+        super(memberId, monthlyFee, trainerName);
+        this.lockerNumber = lockerNumber;
+    }
+
+    @Override
+    public void displayInfo() {
+        System.out.print("Elite Member | Trainer: " + trainerName
+                + " | Locker: " + lockerNumber
+                + " | Sessions: " + getSessionsAttended());
+    }
+}
+
+class GroupClassMember extends GymMember {
+    String className;
+
+    public GroupClassMember(String memberId, int monthlyFee,
+                            String className) {
+        super(memberId, monthlyFee);
+        this.className = className;
+    }
+
+    public GroupClassMember(int monthlyFee, String className) {
+        super(monthlyFee);
+        this.className = className;
+    }
+
+    @Override
+    public void displayInfo() {
+        System.out.print("Group Class Member | Class: " + className
+                + " | Sessions: " + getSessionsAttended());
+    }
+}
+
+public class GymManagementSystem {
+    static String classifyGeneration(GymMember member) {
+        if (member instanceof EliteMember)
+            return "Multilevel descendant (3 generations deep)";
+        if (member instanceof GroupClassMember)
+            return "Hierarchical sibling (independent branch)";
+        if (member instanceof PremiumMember)
+            return "Second generation";
+        return "Base generation";
+    }
+
+    static int getTotalSessionsAttended(GymMember[] members) {
+        int total = 0;
+        for (GymMember member : members)
+            total += member.getSessionsAttended();
+        return total;
+    }
+
+    static String batchPrint(GymMember[] members) {
+        StringBuilder result = new StringBuilder();
+
+        for (GymMember member : members) {
+            StringBuilder info = new StringBuilder();
+            java.io.PrintStream original = System.out;
+            java.io.ByteArrayOutputStream output =
+                    new java.io.ByteArrayOutputStream();
+            System.setOut(new java.io.PrintStream(output));
+            member.displayInfo();
+            System.setOut(original);
+            info.append(output.toString());
+
+            if (member instanceof PremiumMember) {
+                PremiumMember premium = (PremiumMember) member;
+                info.append(" [Trainer via downcast: ")
+                    .append(premium.trainerName).append("]");
+            }
+
+            result.append(info).append(" | ");
+        }
+
+        return result.toString();
+    }
+
+    public static void main(String[] args) {
+        GymMember member = new GymMember("MEM1", 1000);
+        PremiumMember premium =
+                new PremiumMember("MEM2", 2000, "Coach Riya");
+        EliteMember elite =
+                new EliteMember("MEM3", 3000, "Coach Arjun", "L12");
+        GroupClassMember group =
+                new GroupClassMember("MEM4", 1500, "Zumba");
+
+        premium.attendSession();
+        premium.attendSession();
+        elite.attendSession();
+        group.attendSession();
+
+        System.out.println(GymMember.signUpBatch(
+                new String[]{"MEM1", "GM1", "MEM2", " ", "MEM3"}, 1000));
+
+        System.out.println(classifyGeneration(elite));
+        System.out.println(getTotalSessionsAttended(
+                new GymMember[]{member, premium, elite, group}));
+
+        System.out.println(batchPrint(
+                new GymMember[]{member, premium, elite, group}));
+
+        System.out.println(GymMember.isValidReferralCode("G45B"));
+
+        System.out.println(GymMember.processWeeklyCheckIn(
+                new GymMember[]{group, null, member}));
+    }
+}
